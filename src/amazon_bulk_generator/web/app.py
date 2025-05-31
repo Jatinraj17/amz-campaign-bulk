@@ -381,10 +381,13 @@ class BulkCampaignApp:
 
     def run(self):
         """Run the Streamlit application"""
+        # Create columns for header with logo
         col1, col2 = st.columns([3, 1])
         with col1:
             st.title("Amazon Ads Bulk Campaign Generator 🎯")
             st.markdown("Create properly formatted bulk sheets for Amazon Sponsored Products campaigns")
+        with col2:
+            st.image("ECommercean-Logo (1).png", width=200)
         
         # Initialize session state
         if 'step' not in st.session_state:

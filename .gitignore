@@ -34,3 +34,8 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Project specific
+output/
+*.csv
+*.xlsx
