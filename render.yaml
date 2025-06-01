@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: amazon-bulk-campaign-generator
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "10000"
