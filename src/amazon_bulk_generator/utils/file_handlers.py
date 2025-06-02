@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 import logging
 from pathlib import Path
+import pkg_resources
 
 logger = logging.getLogger(__name__)
 
@@ -158,12 +159,29 @@ class FileHandler:
         Returns:
             Content of the template file
         """
+        # First try to load from package resources (for deployed environments)
+        try:
+            filename = f"{template_type}_template.csv"
+            template_content = pkg_resources.resource_string(
+                'amazon_bulk_generator', 
+                f'templates/{filename}'
+            ).decode('utf-8')
+            return template_content
+        except:
+            pass
+        
+        # Fallback to local file system (for development)
         template_path = self.get_template_path(template_type)
         try:
             with open(template_path, 'r') as f:
                 return f.read()
         except FileNotFoundError:
             logger.warning(f"Template file not found: {template_path}")
+            # Return default template data if file not found
+            if template_type == 'keywords':
+                return "gaming keyboard\nwireless mouse\nlaptop stand"
+            elif template_type == 'skus':
+                return "SKU001\nSKU002\nSKU003"
             return ""
         except Exception as e:
             logger.error(f"Error loading template {template_path}: {str(e)}")

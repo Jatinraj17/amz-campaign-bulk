@@ -1,0 +1,2 @@
+include templates/*.csv
+recursive-include src/amazon_bulk_generator/templates *.csv
