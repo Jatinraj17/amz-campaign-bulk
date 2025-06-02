@@ -192,7 +192,7 @@ class BulkCampaignApp:
             custom_text = st.text_input(
                 "Add custom text",
                 key=f"{title}_custom",
-                help="Only letters, numbers, hyphens, and underscores"
+                help="Letters, numbers, spaces, hyphens and underscores (e.g., 'Moringa Powder')"
             )
         with col2:
             if custom_text:
