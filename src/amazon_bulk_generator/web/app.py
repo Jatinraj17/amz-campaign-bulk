@@ -196,11 +196,13 @@ class BulkCampaignApp:
             )
         with col2:
             if custom_text:
-                if not re.match(r'^[a-zA-Z0-9_-]+$', custom_text):
-                    st.error("Invalid characters")
+                # Allow letters, numbers, spaces, hyphens, underscores, and common special characters
+                if not re.match(r'^[a-zA-Z0-9\s_-]+$', custom_text.strip()):
+                    st.error("Only letters, numbers, spaces, hyphens, and underscores allowed")
                 elif st.button("Add", key=f"{title}_add_custom"):
-                    if custom_text not in st.session_state[key]:
-                        st.session_state[key].append(custom_text)
+                    clean_text = custom_text.strip()
+                    if clean_text and clean_text not in st.session_state[key]:
+                        st.session_state[key].append(clean_text)
                         st.rerun()
 
         # Create tabs
