@@ -130,8 +130,16 @@ class BulkSheetGenerator:
     def _generate_campaign_name(self, template: str, sku: str, match_type: str, start_date: str) -> str:
         """Generate campaign name using template"""
         # Map of placeholders to their values
+        # Handle SKU placeholder specially to avoid overly long names with grouped SKUs
+        sku_parts = sku.split('_')
+        if len(sku_parts) > 1:
+            # For grouped SKUs, use first SKU + count
+            sku_display = f"{sku_parts[0]}+{len(sku_parts)-1}"
+        else:
+            sku_display = sku
+
         replacements = {
-            '[SKU]': sku,
+            '[SKU]': sku_display,
             'SP': 'SP',
             'match_type': match_type,
             '[Root]': '[Root]',
