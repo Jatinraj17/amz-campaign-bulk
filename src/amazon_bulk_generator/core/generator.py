@@ -114,16 +114,15 @@ class BulkSheetGenerator:
         for sku_group in sku_groups:
             for keyword_group in keyword_groups:
                 for match_type in settings.match_types:
-                    for sku in sku_group:
-                        # Generate campaign rows for the entire keyword group
-                        group_rows = self._generate_campaign_rows(
-                            sku=sku,
-                            keywords=keyword_group,
-                            match_type=match_type.lower(),
-                            start_date=start_date,
-                            settings=settings
-                        )
-                        rows.extend(group_rows)
+                    # Generate campaign rows for the entire keyword group and sku group
+                    group_rows = self._generate_campaign_rows(
+                        sku_group=sku_group,
+                        keywords=keyword_group,
+                        match_type=match_type.lower(),
+                        start_date=start_date,
+                        settings=settings
+                    )
+                    rows.extend(group_rows)
         
         df = pd.DataFrame(rows, columns=self.headers)
         return self._format_dataframe(df)
@@ -159,29 +158,32 @@ class BulkSheetGenerator:
         
         return template
 
-    def _generate_campaign_rows(self, sku: str, keywords: List[str], match_type: str, 
+    def _generate_campaign_rows(self, sku_group: List[str], keywords: List[str], match_type: str, 
                               start_date: str, settings: CampaignSettings) -> List[Dict[str, Any]]:
-        """Generate all rows for a single campaign with multiple keywords"""
+        """Generate all rows for a single campaign with multiple keywords and SKUs"""
         rows = []
         
         # Clean keywords for use in names
         clean_keywords = [re.sub(r'[^a-zA-Z0-9]', '_', kw).lower() for kw in keywords]
         group_identifier = clean_keywords[0]  # Use first keyword as group identifier
         
-        # Generate a unique campaign ID using the group identifier
-        campaign_id = f"{sku}_{match_type}_{group_identifier}"
+        # Create a combined SKU string for the group
+        combined_sku = "_".join(sku_group)
+        
+        # Generate a unique campaign ID using the combined SKU and group identifier
+        campaign_id = f"{combined_sku}_{match_type}_{group_identifier}"
         
         # Generate base names
         base_campaign_name = self._generate_campaign_name(
             settings.campaign_name_template, 
-            sku, 
+            combined_sku, 
             match_type,
             start_date
         )
         
         base_ad_group_name = self._generate_campaign_name(
             settings.ad_group_name_template,
-            sku,
+            combined_sku,
             match_type,
             start_date
         )
@@ -253,15 +255,16 @@ class BulkSheetGenerator:
             })
             rows.append(bidding_adjustment_row)
         
-        # Product Ad row
-        product_ad_row = base_row.copy()
-        product_ad_row.update({
-            'Entity': self.ENTITY_PRODUCT_AD,
-            'Ad Group ID': campaign_id,
-            'SKU': sku,
-            'State': self.STATE
-        })
-        rows.append(product_ad_row)
+        # Product Ad rows for each SKU in the group
+        for sku in sku_group:
+            product_ad_row = base_row.copy()
+            product_ad_row.update({
+                'Entity': self.ENTITY_PRODUCT_AD,
+                'Ad Group ID': campaign_id,
+                'SKU': sku,
+                'State': self.STATE
+            })
+            rows.append(product_ad_row)
         
         # Keyword rows
         for keyword in keywords:
