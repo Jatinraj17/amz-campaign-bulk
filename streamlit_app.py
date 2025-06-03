@@ -5,9 +5,8 @@ Run this file using: streamlit run streamlit_app.py
 """ New login Code for wordpress"""
 import streamlit as st
 import jwt
-import time
 
-SECRET_KEY = "y0uRs3cR3tK3y!$%A9zX81#^dFgjLk2mN8R"  # Use the same key from WordPress
+SECRET_KEY = "y0uRs3cR3tK3y!$%A9zX81#^dFgjLk2mN8R"  # Same as WordPress
 
 def validate_token(token):
     try:
@@ -21,11 +20,11 @@ def validate_token(token):
         st.stop()
 
 def get_token_from_query():
-    query_params = st.experimental_get_query_params()
+    query_params = st.query_params
     token = query_params.get("token", [None])[0]
     return token
 
-# Entry point
+# Main logic
 token = get_token_from_query()
 if not token:
     st.error("Access denied. No token provided.")
