@@ -9,3 +9,9 @@ services:
     envVars:
       - key: PORT
         value: "10000"
+      - key: WORDPRESS_URL
+        value: "https://ecommercean.com"
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"

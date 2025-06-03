@@ -5,6 +5,7 @@ import logging
 import os
 from typing import Dict, Any, Tuple, List
 import re
+from amazon_bulk_generator.auth.wordpress_auth import WordPressAuth
 
 from amazon_bulk_generator.core.generator import BulkSheetGenerator, CampaignSettings
 from amazon_bulk_generator.core.validators import (
@@ -26,6 +27,7 @@ class BulkCampaignApp:
         self.file_handler = FileHandler()
         self.text_formatter = TextFormatter()
         self.data_formatter = DataFormatter()
+        self.auth = WordPressAuth()
         
         self.part_mapping = {
             "SKU": "[SKU]",
@@ -383,13 +385,34 @@ class BulkCampaignApp:
 
     def run(self):
         """Run the Streamlit application"""
+        # Check authentication first
+        if not self.auth.check_auth():
+            # Get token from URL parameters if present
+            params = st.experimental_get_query_params()
+            if 'token' in params:
+                token = params[0]
+                if self.auth.handle_oauth_callback(token):
+                    st.experimental_set_query_params()  # Clear URL parameters
+                    st.rerun()  # Refresh page after successful login
+                else:
+                    st.error("Invalid or expired token. Please try logging in again.")
+                    self.auth.show_login_page()
+                    return
+            else:
+                self.auth.show_login_page()
+                return
+
         # Create columns for header with logo
-        col1, col2 = st.columns([3, 1])
+        col1, col2, col3 = st.columns([3, 1, 1])
         with col1:
             st.title("Amazon Ads Bulk Campaign Generator 🎯")
             st.markdown("Create properly formatted bulk sheets for Amazon Sponsored Products campaigns")
         with col2:
             st.image("ECommercean-Logo (1).png", width=200)
+        with col3:
+            if st.button("Logout"):
+                self.auth.logout()
+                st.rerun()
         
         # Initialize session state
         if 'step' not in st.session_state:
