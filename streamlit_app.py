@@ -2,15 +2,21 @@
 Streamlit entry point for the Amazon Ads Bulk Campaign Generator.
 Run this file using: streamlit run streamlit_app.py
 """
-""" New login Code for wordpress"""
+import os
+import sys
+from pathlib import Path
 import streamlit as st
 import jwt
 
-# Must match the secret key used in WordPress
+# ✅ Must be the first Streamlit command
+st.set_page_config(page_title="Amazon Bulk Campaign Generator", layout="wide")
+
+# ✅ Secret must match WordPress
 SECRET_KEY = "y0uRs3cR3tK3y!$%A9zX81#^dFgjLk2mN8R"
 
+# ✅ Token handling
 def get_token_from_query():
-    query_params = st.experimental_get_query_params()
+    query_params = st.query_params
     token = query_params.get("token", [None])[0]
     return token
 
@@ -28,45 +34,27 @@ def validate_token(token):
         st.error("❌ Invalid token. Access denied.")
         st.stop()
 
-# Read token from URL
+# ✅ Check token before loading app
 token = get_token_from_query()
-
-# Check if token is provided
 if not token:
-    st.error("❌ Access denied. No token provided in URL.")
+    st.error("❌ Access denied. No token provided.")
     st.stop()
 
-# Debug: show the raw token (optional — remove in production)
-# st.code(token, language='text')
-
-# Validate token
 user_id = validate_token(token)
-
-# Success
 st.success(f"✅ Authenticated as WordPress user ID: {user_id}")
 
-# Continue your Streamlit app logic below...
-# For example:
-st.write("Welcome to the Amazon Bulk Campaign Generator 🎯")
-
-"""new login code ends"""
-
-import os
-import sys
-from pathlib import Path
-
-# Add the src directory to Python path
+# ✅ Setup environment (after validation)
 src_path = str(Path(__file__).parent / 'src')
 if src_path not in sys.path:
     sys.path.append(src_path)
 
-# Create necessary directories
 os.makedirs('templates', exist_ok=True)
 os.makedirs('output', exist_ok=True)
 
-# Import and run the app
+# ✅ Import and run app AFTER auth passes
 from amazon_bulk_generator.web.app import BulkCampaignApp
 
 if __name__ == "__main__":
     app = BulkCampaignApp()
     app.run()
+
