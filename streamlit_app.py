@@ -36,6 +36,9 @@ def validate_token(token):
 
 # ✅ Check token before loading app
 token = get_token_from_query()
+st.write("Token received:")
+st.code(token)  # ✅ This will show the actual token on screen
+
 if not token:
     st.error("❌ Access denied. No token provided.")
     st.stop()
