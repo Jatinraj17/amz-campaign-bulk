@@ -5,8 +5,8 @@ import logging
 import os
 from typing import Dict, Any, Tuple, List
 import re
-from amazon_bulk_generator.auth.wordpress_auth import WordPressAuth
 
+from amazon_bulk_generator.auth.wordpress_auth import WordPressAuth
 from amazon_bulk_generator.core.generator import BulkSheetGenerator, CampaignSettings
 from amazon_bulk_generator.core.validators import (
     validate_keywords,
@@ -16,13 +16,10 @@ from amazon_bulk_generator.core.validators import (
 )
 from amazon_bulk_generator.utils.file_handlers import FileHandler
 from amazon_bulk_generator.utils.formatters import TextFormatter, DataFormatter
-        
-# Top load of the page headers
-st.set_page_config(
-            page_title="Amazon Ads Bulk Campaign Generator",
-            page_icon="🎯",
-            layout="wide"
-        )
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Note: No st.set_page_config(...) here. That must be in streamlit_app.py only.
+# ──────────────────────────────────────────────────────────────────────────────
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -45,8 +42,6 @@ class BulkCampaignApp:
             "KEYWORD": "[KW]",
             "AG": "AG"
         }
-        
-
 
     def get_keywords_input(self) -> Tuple[list, bool, int]:
         """Get and validate keywords input"""
@@ -110,7 +105,7 @@ class BulkCampaignApp:
                         st.write("Preview of keyword groups:")
                         groups = [keywords[i:i + group_size] for i in range(0, len(keywords), group_size)]
                         for i, group in enumerate(groups, 1):
-                            with st.expander(f"Group {i}", expanded=i==1):
+                            with st.expander(f"Group {i}", expanded=(i == 1)):
                                 st.write("\n".join(group))
         
         return keywords, has_error, group_size
@@ -177,7 +172,7 @@ class BulkCampaignApp:
                         st.write("Preview of SKU groups:")
                         groups = [skus[i:i + group_size] for i in range(0, len(skus), group_size)]
                         for i, group in enumerate(groups, 1):
-                            with st.expander(f"Group {i}", expanded=i==1):
+                            with st.expander(f"Group {i}", expanded=(i == 1)):
                                 st.write("\n".join(group))
         
         return skus, has_error, group_size
@@ -186,22 +181,20 @@ class BulkCampaignApp:
         """Create a user-friendly interface for arranging template parts"""
         st.markdown(f"### 📝 {title}")
         
-        # Initialize session state
         key = f"{title}_selected_parts"
         if key not in st.session_state:
             st.session_state[key] = default_parts.copy()
         
-        # Add custom text input
+        # Custom text input
         col1, col2 = st.columns([3, 1])
         with col1:
             custom_text = st.text_input(
                 "Add custom text",
                 key=f"{title}_custom",
-                help="Letters, numbers, spaces, hyphens and underscores (e.g., 'Moringa Powder')"
+                help="Letters, numbers, spaces, hyphens and underscores allowed"
             )
         with col2:
             if custom_text:
-                # Allow letters, numbers, spaces, hyphens, underscores, and common special characters
                 if not re.match(r'^[a-zA-Z0-9\s_-]+$', custom_text.strip()):
                     st.error("Only letters, numbers, spaces, hyphens, and underscores allowed")
                 elif st.button("Add", key=f"{title}_add_custom"):
@@ -210,14 +203,12 @@ class BulkCampaignApp:
                         st.session_state[key].append(clean_text)
                         st.rerun()
 
-        # Create tabs
         tab1, tab2 = st.tabs(["Arrange Parts", "Add Parts"])
         
         with tab1:
             st.markdown("##### Current Parts:")
             selected_parts = st.session_state[key]
             
-            # Create reorderable list
             for i, part in enumerate(selected_parts):
                 col1, col2, col3 = st.columns([0.1, 0.8, 0.1])
                 with col1:
@@ -233,7 +224,6 @@ class BulkCampaignApp:
                             selected_parts[i], selected_parts[i+1] = selected_parts[i+1], selected_parts[i]
                             st.rerun()
             
-            # Remove buttons
             if selected_parts:
                 st.markdown("##### Remove parts:")
                 cols = st.columns(4)
@@ -258,11 +248,9 @@ class BulkCampaignApp:
             else:
                 st.info("All parts have been added")
 
-        # Generate template
         template_values = [self.part_mapping.get(part, part) for part in selected_parts]
         template = "_".join(template_values)
         
-        # Show preview
         st.markdown("##### Template Preview")
         st.code(template)
         
@@ -277,11 +265,9 @@ class BulkCampaignApp:
         """Get and validate campaign settings"""
         has_error = False
         
-        # Create columns for settings
         col1, col2 = st.columns(2)
         
         with col1:
-            # Campaign Name Template
             available_parts = ["SKU", "AD TYPE", "MATCH TYPE", "START DATE", "ROOT GROUP", "KEYWORD"]
             default_parts = ["SKU", "AD TYPE", "MATCH TYPE"]
             
@@ -291,7 +277,6 @@ class BulkCampaignApp:
                 default_parts
             )
             
-            # Ad Group Template
             ag_available_parts = ["AG", "SKU", "MATCH TYPE", "START DATE", "ROOT GROUP", "KEYWORD"]
             ag_default_parts = ["AG", "MATCH TYPE", "SKU"]
             
@@ -329,7 +314,6 @@ class BulkCampaignApp:
                     value=0.75
                 )
         
-        # Create CampaignSettings object
         settings = CampaignSettings(
             daily_budget=daily_budget,
             start_date=start_date,
@@ -341,7 +325,6 @@ class BulkCampaignApp:
             sku_group_size=st.session_state.get('sku_group_size')
         )
         
-        # Validate settings
         valid, error = validate_campaign_settings(settings)
         if not valid:
             st.error(error)
@@ -388,24 +371,42 @@ class BulkCampaignApp:
 
     def run(self):
         """Run the Streamlit application"""
-        # Check authentication first
-        if not self.auth.check_auth():
-            # Get token from URL parameters if present
-            params = st.experimental_get_query_params()
-            if 'token' in params:
-                token = params[0]
+        # ───────────────────────────────────────────────────────────────────────
+        # 1. VALIDATE TOKEN (from session_state or URL)
+        # ───────────────────────────────────────────────────────────────────────
+        token = st.session_state.get("auth_token", None)
+
+        if not token:
+            params = st.query_params.get("token")
+            if params:
+                # If params is a list, take the first element
+                token = params[0] if isinstance(params, list) else params
+
+            if token:
                 if self.auth.handle_oauth_callback(token):
-                    st.experimental_set_query_params()  # Clear URL parameters
-                    st.rerun()  # Refresh page after successful login
+                    st.session_state["auth_token"] = token
+                    st.experimental_set_query_params()  # Clear URL token
+                    st.rerun()
                 else:
-                    st.error("Invalid or expired token. Please try logging in again.")
+                    st.error("❌ Invalid or expired token. Please login again.")
                     self.auth.show_login_page()
                     return
             else:
                 self.auth.show_login_page()
                 return
 
-        # Create columns for header with logo
+        # ───────────────────────────────────────────────────────────────────────
+        # 2. NOTIFY USER THEY ARE LOGGED IN
+        # ───────────────────────────────────────────────────────────────────────
+        user_id = self.auth.get_user_id()
+        if user_id:
+            st.sidebar.success(f"🔐 Logged in as WordPress User ID: {user_id}")
+        else:
+            st.sidebar.warning("Unable to retrieve user ID from token.")
+
+        # ───────────────────────────────────────────────────────────────────────
+        # 3. HEADER WITH LOGO AND LOGOUT
+        # ───────────────────────────────────────────────────────────────────────
         col1, col2, col3 = st.columns([3, 1, 1])
         with col1:
             st.title("Amazon Ads Bulk Campaign Generator 🎯")
@@ -414,57 +415,59 @@ class BulkCampaignApp:
             st.image("ECommercean-Logo (1).png", width=200)
         with col3:
             if st.button("Logout"):
+                st.session_state.clear()
                 self.auth.logout()
+                st.experimental_set_query_params()
                 st.rerun()
-        
-        # Initialize session state
+
+        # ───────────────────────────────────────────────────────────────────────
+        # 4. SESSION STATE INITIALIZATION
+        # ───────────────────────────────────────────────────────────────────────
         if 'step' not in st.session_state:
             st.session_state.step = 1
             st.session_state.keywords = []
             st.session_state.skus = []
-            st.session_state.group_size = None
-        
-        # Create two columns for Step 1
+            st.session_state.keyword_group_size = None
+            st.session_state.sku_group_size = None
+
+        # ───────────────────────────────────────────────────────────────────────
+        # 5. STEP 1: KEYWORDS + SKUs INPUT
+        # ───────────────────────────────────────────────────────────────────────
         if st.session_state.step == 1:
             st.header("Step 1: Enter Keywords and SKUs")
-            
+
             col1, col2 = st.columns(2)
             with col1:
                 keywords, keywords_error, keyword_group_size = self.get_keywords_input()
             with col2:
                 skus, skus_error, sku_group_size = self.get_skus_input()
-            
-            # Navigation section with fixed position at bottom
-            st.markdown("<br>", unsafe_allow_html=True)  # Add some space
+
+            # Navigation section
+            st.markdown("<br>", unsafe_allow_html=True)
             nav_container = st.container()
-            
             with nav_container:
-                # Success message if both inputs are valid
                 if keywords and skus and not keywords_error and not skus_error:
-                    st.success(f"✅ Successfully loaded {len(keywords)} keywords and {len(skus)} SKUs")
-                    
-                    # Center the button using columns
+                    st.success(f"✅ Loaded {len(keywords)} keywords and {len(skus)} SKUs")
+
                     col1, col2, col3 = st.columns([1, 2, 1])
                     with col2:
                         if st.button("Continue to Campaign Settings ➡️", type="primary", use_container_width=True):
-                            # Store values in session state
                             st.session_state.keywords = keywords
                             st.session_state.skus = skus
                             st.session_state.keyword_group_size = keyword_group_size
                             st.session_state.sku_group_size = sku_group_size
                             st.session_state.step = 2
                             st.rerun()
-        
-        # Step 2: Campaign Settings
+
+        # ───────────────────────────────────────────────────────────────────────
+        # 6. STEP 2: CAMPAIGN SETTINGS
+        # ───────────────────────────────────────────────────────────────────────
         elif st.session_state.step == 2:
             st.header("Step 2: Configure Campaign Settings")
             settings, settings_error = self.get_campaign_settings()
-            
-            # Add container for better organization
+
             with st.container():
-                st.markdown("---")  # Add a visual separator
-                
-                # Navigation buttons
+                st.markdown("---")
                 col1, col2, col3 = st.columns([1, 2, 1])
                 with col1:
                     if st.button("⬅️ Back to Step 1", use_container_width=True):
@@ -473,12 +476,10 @@ class BulkCampaignApp:
                 with col2:
                     if settings and not settings_error:
                         if st.button("🎯 Generate Bulk Sheet", type="primary", use_container_width=True):
-                            # Retrieve values from session state
                             if 'keywords' not in st.session_state or 'skus' not in st.session_state:
-                                st.error("Keywords or SKUs not found. Please go back to Step 1.")
+                                st.error("Keywords/SKUs missing. Go back to Step 1.")
                                 return
-                            
-                            # Create CampaignSettings object
+
                             campaign_settings = CampaignSettings(
                                 daily_budget=settings.daily_budget,
                                 start_date=settings.start_date,
@@ -487,13 +488,13 @@ class BulkCampaignApp:
                                 campaign_name_template=settings.campaign_name_template,
                                 ad_group_name_template=settings.ad_group_name_template,
                                 keyword_group_size=settings.keyword_group_size,
-                                sku_group_size=settings.sku_group_size,
-                                bid_adjustment=settings.bid_adjustment,
-                                placement=settings.placement
+                                sku_group_size=settings.sku_group_size
                             )
-                            
+
                             self.generate_bulk_sheet(
                                 st.session_state.keywords,
                                 st.session_state.skus,
                                 campaign_settings
                             )
+
+        # End of run()
