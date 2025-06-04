@@ -16,6 +16,13 @@ from amazon_bulk_generator.core.validators import (
 )
 from amazon_bulk_generator.utils.file_handlers import FileHandler
 from amazon_bulk_generator.utils.formatters import TextFormatter, DataFormatter
+        
+# Top load of the page headers
+st.set_page_config(
+            page_title="Amazon Ads Bulk Campaign Generator",
+            page_icon="🎯",
+            layout="wide"
+        )
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,11 +46,7 @@ class BulkCampaignApp:
             "AG": "AG"
         }
         
-        st.set_page_config(
-            page_title="Amazon Ads Bulk Campaign Generator",
-            page_icon="🎯",
-            layout="wide"
-        )
+
 
     def get_keywords_input(self) -> Tuple[list, bool, int]:
         """Get and validate keywords input"""
