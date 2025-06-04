@@ -1,7 +1,7 @@
 import streamlit as st
-import pandas as pd
-from datetime import datetime
+import jwt
 import logging
+from datetime import datetime
 import os
 from typing import Dict, Any, Tuple, List
 import re
@@ -16,10 +16,6 @@ from amazon_bulk_generator.core.validators import (
 )
 from amazon_bulk_generator.utils.file_handlers import FileHandler
 from amazon_bulk_generator.utils.formatters import TextFormatter, DataFormatter
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Note: No st.set_page_config(...) here. That must be in streamlit_app.py only.
-# ──────────────────────────────────────────────────────────────────────────────
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -42,6 +38,118 @@ class BulkCampaignApp:
             "KEYWORD": "[KW]",
             "AG": "AG"
         }
+
+    def run(self):
+        """Run the Streamlit application"""
+        # Check authentication first
+        query_params = st.query_params
+        token = query_params.get("token")
+        
+        if token:
+            # If token is present in URL, try to validate it
+            try:
+                # Validate JWT token
+                payload = jwt.decode(token, self.auth.secret_key, algorithms=["HS256"])
+                st.session_state.wp_token = token
+                st.session_state.user_id = payload.get("user_id")
+            except jwt.ExpiredSignatureError:
+                st.error("❌ Session expired. Please login again.")
+                self.auth.show_login_page()
+                return
+            except jwt.InvalidTokenError:
+                st.error("❌ Invalid token. Access denied.")
+                self.auth.show_login_page()
+                return
+        
+        # Check if user is authenticated
+        if not self.auth.check_auth():
+            self.auth.show_login_page()
+            return
+
+        # Create columns for header with logo
+        col1, col2, col3 = st.columns([3, 1, 1])
+        with col1:
+            st.title("Amazon Ads Bulk Campaign Generator 🎯")
+            st.markdown("Create properly formatted bulk sheets for Amazon Sponsored Products campaigns")
+        with col2:
+            st.image("ECommercean-Logo (1).png", width=200)
+        with col3:
+            if st.button("Logout"):
+                st.session_state.clear()
+                self.auth.logout()
+                st.experimental_set_query_params()
+                st.rerun()
+
+        # Initialize session state
+        if 'step' not in st.session_state:
+            st.session_state.step = 1
+            st.session_state.keywords = []
+            st.session_state.skus = []
+            st.session_state.keyword_group_size = None
+            st.session_state.sku_group_size = None
+
+        # Step 1: Keywords + SKUs Input
+        if st.session_state.step == 1:
+            st.header("Step 1: Enter Keywords and SKUs")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                keywords, keywords_error, keyword_group_size = self.get_keywords_input()
+            with col2:
+                skus, skus_error, sku_group_size = self.get_skus_input()
+
+            # Navigation section
+            st.markdown("<br>", unsafe_allow_html=True)
+            nav_container = st.container()
+            with nav_container:
+                if keywords and skus and not keywords_error and not skus_error:
+                    st.success(f"✅ Loaded {len(keywords)} keywords and {len(skus)} SKUs")
+
+                    col1, col2, col3 = st.columns([1, 2, 1])
+                    with col2:
+                        if st.button("Continue to Campaign Settings ➡️", type="primary", use_container_width=True):
+                            st.session_state.keywords = keywords
+                            st.session_state.skus = skus
+                            st.session_state.keyword_group_size = keyword_group_size
+                            st.session_state.sku_group_size = sku_group_size
+                            st.session_state.step = 2
+                            st.rerun()
+
+        # Step 2: Campaign Settings
+        elif st.session_state.step == 2:
+            st.header("Step 2: Configure Campaign Settings")
+            settings, settings_error = self.get_campaign_settings()
+
+            with st.container():
+                st.markdown("---")
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col1:
+                    if st.button("⬅️ Back to Step 1", use_container_width=True):
+                        st.session_state.step = 1
+                        st.rerun()
+                with col2:
+                    if settings and not settings_error:
+                        if st.button("🎯 Generate Bulk Sheet", type="primary", use_container_width=True):
+                            if 'keywords' not in st.session_state or 'skus' not in st.session_state:
+                                st.error("Keywords/SKUs missing. Go back to Step 1.")
+                                return
+
+                            campaign_settings = CampaignSettings(
+                                daily_budget=settings.daily_budget,
+                                start_date=settings.start_date,
+                                match_types=settings.match_types,
+                                bids=settings.bids,
+                                campaign_name_template=settings.campaign_name_template,
+                                ad_group_name_template=settings.ad_group_name_template,
+                                keyword_group_size=settings.keyword_group_size,
+                                sku_group_size=settings.sku_group_size
+                            )
+
+                            self.generate_bulk_sheet(
+                                st.session_state.keywords,
+                                st.session_state.skus,
+                                campaign_settings
+                            )
 
     def get_keywords_input(self) -> Tuple[list, bool, int]:
         """Get and validate keywords input"""
@@ -322,6 +430,49 @@ class BulkCampaignApp:
             campaign_name_template=campaign_name_template,
             ad_group_name_template=ad_group_name_template,
             keyword_group_size=st.session_state.get('keyword_group_size'),
-            sku_group_size=st.The conflict in `src/amazon_bulk_generator/web/app.py` is between the old token validation flow and the new one in the WordPressAuth class. I will resolve it by keeping the new flow that uses the WordPressAuth class for authentication and removes the duplicate token handling in the run method.
+            sku_group_size=st.session_state.get('sku_group_size')
+        )
+        
+        valid, error = validate_campaign_settings(settings)
+        if not valid:
+            st.error(error)
+            has_error = True
+        
+        return settings, has_error
 
-Let me update the file accordingly.
+    def generate_bulk_sheet(self, keywords: list, skus: list, settings: CampaignSettings):
+        """Generate and display bulk sheet"""
+        try:
+            df = self.generator.generate_bulk_sheet(keywords, skus, settings)
+            preview_df = self.data_formatter.prepare_preview_data(df)
+            
+            excel_path = self.file_handler.save_bulk_sheet(df, 'xlsx')
+            csv_path = self.file_handler.save_bulk_sheet(df, 'csv')
+            
+            st.success("Bulk sheet generated successfully!")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                with open(excel_path, 'rb') as f:
+                    st.download_button(
+                        "Download Excel File",
+                        f.read(),
+                        file_name=os.path.basename(excel_path),
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+            
+            with col2:
+                with open(csv_path, 'rb') as f:
+                    st.download_button(
+                        "Download CSV File",
+                        f.read(),
+                        file_name=os.path.basename(csv_path),
+                        mime="text/csv"
+                    )
+            
+            st.markdown("### 🔍 Preview")
+            st.dataframe(preview_df)
+            
+        except Exception as e:
+            logger.error(f"Error generating bulk sheet: {str(e)}")
+            st.error(f"Error generating bulk sheet: {str(e)}")
