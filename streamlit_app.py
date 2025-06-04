@@ -23,21 +23,23 @@ def validate_token(token):
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return payload.get("user_id")
     except jwt.ExpiredSignatureError:
-        st.error("❌ Session expired. Please login again from WordPress.")
+        st.error("\u274c Session expired. Please login again from WordPress.")
         st.stop()
     except jwt.InvalidTokenError as e:
-        st.error(f"❌ Token validation failed: {str(e)}")
+        st.error(f"\u274c Token validation failed: {str(e)}")
         st.stop()
 
 # ✅ Extract token safely from query
-token = st.query_params.get("token", None)
-if not token:
-    st.error("❌ No token provided in URL. Please login from WordPress.")
+params = st.query_params
+raw_token = params.get("token")
+if not raw_token:
+    st.error("\u274c No token provided in URL. Please login from WordPress.")
     st.stop()
 
+token = raw_token[0] if isinstance(raw_token, list) else raw_token
 user_id = validate_token(token)
 if not user_id:
-    st.error("❌ Invalid token. Access denied.")
+    st.error("\u274c Invalid token. Access denied.")
     st.stop()
 
 st.success(f"✅ Authenticated as WordPress User ID: {user_id}")
@@ -54,8 +56,5 @@ os.makedirs('output', exist_ok=True)
 # ▶️ Launch app
 from amazon_bulk_generator.web.app import BulkCampaignApp
 
-if __name__ == "__main__":
-    app = BulkCampaignApp()
-    app.run()
-
-
+app = BulkCampaignApp()
+app.run()
