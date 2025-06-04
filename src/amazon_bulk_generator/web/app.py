@@ -77,7 +77,8 @@ class BulkCampaignApp:
             if st.button("Logout"):
                 st.session_state.clear()
                 self.auth.logout()
-                st.experimental_set_query_params()
+                # Use query_params instead of experimental_set_query_params
+                st.query_params.clear()
                 st.rerun()
 
         # Initialize session state
