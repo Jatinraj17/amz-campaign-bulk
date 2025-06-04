@@ -26,9 +26,8 @@ class FileHandler:
         directories = ['templates', 'output', 'input']
         for directory in directories:
             dir_path = os.path.join(self.base_dir, directory)
-            if not os.path.exists(dir_path):
-                os.makedirs(dir_path)
-                logger.info(f"Created directory: {dir_path}")
+            os.makedirs(dir_path, exist_ok=True)
+            logger.info(f"Created directory: {dir_path}")
 
     def load_csv_data(self, file_path: str) -> List[str]:
         """
