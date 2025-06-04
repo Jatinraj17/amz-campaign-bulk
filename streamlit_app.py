@@ -16,9 +16,7 @@ SECRET_KEY = "y0uRs3cR3tK3y!$%A9zX81#^dFgjLk2mN8R"
 
 # ✅ Token handling
 def get_token_from_query():
-    query_params = st.query_params
-    token = query_params.get("token", [None])[0]
-    return token
+    return st.query_params.get("token")
 
 def validate_token(token):
     try:
