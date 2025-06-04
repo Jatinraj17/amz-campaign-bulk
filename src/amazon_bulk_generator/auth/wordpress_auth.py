@@ -2,54 +2,43 @@
 WordPress JWT Authentication module
 """
 import os
-import requests
-from typing import Optional, Dict, Tuple
+import jwt
 import streamlit as st
 
 class WordPressAuth:
     def __init__(self):
         self.wp_url = "https://ecommercean.com"
         self.login_url = "https://ecommercean.com/log-in/"
-        self.jwt_auth_url = f"{self.wp_url}/wp-json/jwt-auth/v1/token"
-        self.validate_url = f"{self.wp_url}/wp-json/jwt-auth/v1/token/validate"
+        self.secret_key = "y0uRs3cR3tK3y!$%A9zX81#^dFgjLk2mN8R"
 
     def check_auth(self) -> bool:
         """Check if user is authenticated"""
-        if 'wp_token' not in st.session_state:
-            return False
+        # Get token from URL parameters if present
+        query_params = st.query_params
+        token = query_params.get("token")
         
-        # Validate token with WordPress
-        try:
-            response = requests.post(
-                self.validate_url,
-                headers={'Authorization': f'Bearer {st.session_state.wp_token}'}
-            )
-            return response.status_code == 200
-        except:
-            return False
-
-    def validate_token(self, token: str) -> bool:
-        """Validate JWT token with WordPress"""
-        try:
-            response = requests.post(
-                self.validate_url,
-                headers={'Authorization': f'Bearer {token}'}
-            )
-            return response.status_code == 200
-        except:
-            return False
-
-    def handle_oauth_callback(self, token: str) -> bool:
-        """Handle OAuth callback and validate token"""
-        if self.validate_token(token):
-            st.session_state.wp_token = token
-            return True
-        return False
+        if token:
+            try:
+                # Validate JWT token
+                payload = jwt.decode(token, self.secret_key, algorithms=["HS256"])
+                st.session_state.wp_token = token
+                st.session_state.user_id = payload.get("user_id")
+                return True
+            except jwt.ExpiredSignatureError:
+                st.error("Session expired. Please login again.")
+                return False
+            except jwt.InvalidTokenError:
+                st.error("Invalid token. Access denied.")
+                return False
+        
+        return 'wp_token' in st.session_state
 
     def logout(self):
         """Clear authentication state"""
         if 'wp_token' in st.session_state:
             del st.session_state.wp_token
+        if 'user_id' in st.session_state:
+            del st.session_state.user_id
 
     def get_login_url(self) -> str:
         """Get WordPress login URL"""
