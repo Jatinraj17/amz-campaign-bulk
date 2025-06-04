@@ -24,6 +24,9 @@ def validate_token(token):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return payload.get("user_id")
+         except Exception as e:
+        st.error(f"❌ Token validation failed: {str(e)}")
+        st.stop()
     except jwt.ExpiredSignatureError:
         st.error("❌ Session expired. Please login again from WordPress.")
         st.stop()
